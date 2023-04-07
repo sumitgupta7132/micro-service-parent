@@ -20,10 +20,22 @@ import java.util.UUID;
 @Transactional
 public class OrderService {
     private final OrderRepository orderRepository;
+    private final InventoryClientService inventoryClientService;
+
     public OrderResponse placeOrder(OrderRequest orderRequest){
         log.info("Request received for placing an order");
-        Order order = orderRepository.save(getOrderModel(orderRequest));
+        Order order;
+        if(validateStocks(orderRequest)){
+            order  = orderRepository.save(getOrderModel(orderRequest));
+        }else{
+            throw new IllegalArgumentException("Product is not in Stock, Please try again later");
+        }
         return getOrderResponse(order);
+    }
+
+    private boolean validateStocks(OrderRequest orderRequest) {
+        List<String> skuCodes = orderRequest.getOrders().stream().map(OrderLineItemsDto::getSkuCode).toList();
+        return inventoryClientService.isPresentInInventory(skuCodes);
     }
 
     private OrderResponse getOrderResponse(Order order) {
